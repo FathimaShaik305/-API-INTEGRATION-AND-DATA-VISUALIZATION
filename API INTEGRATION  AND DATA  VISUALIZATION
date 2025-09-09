@@ -1,0 +1,63 @@
+import requests
+import pandas as pd
+import matplotlib.pyplot as plt
+from datetime import datetime, timedelta
+LAT = 13.0827     
+LON = 80.2707     
+TIMEZONE = "Asia/Kolkata"  
+HOURS = 48  
+def fetch_open_meteo(lat, lon, hours=48, timezone="UTC"):
+    url = (
+        "https://api.open-meteo.com/v1/forecast"
+        f"?latitude={lat}&longitude={lon}"
+        f"&hourly=temperature_2m,relativehumidity_2m,precipitation"
+        f"&timezone={timezone}"
+    )
+    r = requests.get(url, timeout=10)
+    r.raise_for_status()
+    return r.json()
+def json_to_dataframe(j):
+    hourly = j["hourly"]
+    df = pd.DataFrame({
+        "time": pd.to_datetime(hourly["time"]),
+        "temperature_2m_C": hourly.get("temperature_2m"),
+        "relativehumidity_2m_pct": hourly.get("relativehumidity_2m"),
+        "precipitation_mm": hourly.get("precipitation"),
+    })
+    return df
+def plot_dashboard(df, title_suffix=""):
+    plt.figure(figsize=(12,4))
+    plt.plot(df['time'], df['temperature_2m_C'])
+    plt.title("Hourly Temperature (°C) " + title_suffix)
+    plt.xlabel("Time")
+    plt.ylabel("Temperature (°C)")
+    plt.xticks(rotation=30)
+    plt.tight_layout()
+    plt.show()
+    plt.figure(figsize=(12,4))
+    plt.plot(df['time'], df['relativehumidity_2m_pct'])
+    plt.title("Hourly Relative Humidity (%) " + title_suffix)
+    plt.xlabel("Time")
+    plt.ylabel("Relative Humidity (%)")
+    plt.xticks(rotation=30)
+    plt.tight_layout()
+    plt.show()
+    plt.figure(figsize=(12,3))
+    plt.bar(df['time'], df['precipitation_mm'])
+    plt.title("Hourly Precipitation (mm) " + title_suffix)
+    plt.xlabel("Time")
+    plt.ylabel("Precipitation (mm)")
+    plt.xticks(rotation=30)
+    plt.tight_layout()
+    plt.show()
+def main():
+    print("Fetching data from Open-Meteo...")
+    j = fetch_open_meteo(LAT, LON, HOURS, TIMEZONE)
+    df = json_to_dataframe(j)
+    print(f"Received {len(df)} hourly rows. Showing first {min(len(df), HOURS)}.")
+    csv_name = f"weather_{LAT}_{LON}.csv".replace(" ", "_")
+    df.to_csv(csv_name, index=False)
+    print(f"Saved CSV to: {csv_name}")
+    plot_dashboard(df.head(HOURS), title_suffix=f"({LAT},{LON})")
+if __name__ == "__main__":
+    main()
